@@ -189,7 +189,7 @@ export default defineNitroPlugin(async (app) => {
     if (process.env.NODE_ENV === 'development') {
         bot.launch();
     } else {
-        bot.telegram.setWebhook()
+        bot.telegram.setWebhook('server-companion-eight.vercel.app/api/')
     }
 })
 
