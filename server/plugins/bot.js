@@ -23,39 +23,44 @@ export default defineNitroPlugin(async (app) => {
         "creditors",
         async (ctx) => {
             ctx.session = INITIAL_SESSION;
-            const found_creditors = await creditors.find({});
-            const buttons = [];
+            try {
+                const found_creditors = await creditors.find({});
+                const buttons = [];
 
-            let replyText = 'Cписок доступных МФО \n';
-            console.log(found_creditors.length)
-            if (found_creditors) {
-                const rows = Math.floor((found_creditors.length) / 5);
-                const reminder = (found_creditors.length) % 5;
-                const final_rows = (reminder ? Math.floor(found_creditors.length / 5) + 1 : rows);
-                const dif = 5 - (5 - reminder);
-                let counter = 0;
-                for (let i = 0; i < final_rows; i++) {
-                    buttons.push([]);
-                    for (let j = 0; j < 5; j++) {
-                        if (reminder && i === final_rows - 1 && j === dif) break;
+                let replyText = 'Cписок доступных МФО \n';
+                console.log(found_creditors.length)
+                if (found_creditors) {
+                    const rows = Math.floor((found_creditors.length) / 5);
+                    const reminder = (found_creditors.length) % 5;
+                    const final_rows = (reminder ? Math.floor(found_creditors.length / 5) + 1 : rows);
+                    const dif = 5 - (5 - reminder);
+                    let counter = 0;
+                    for (let i = 0; i < final_rows; i++) {
+                        buttons.push([]);
+                        for (let j = 0; j < 5; j++) {
+                            if (reminder && i === final_rows - 1 && j === dif) break;
 
-                        console.log(counter)
-                        replyText += `${counter + 1}. ${found_creditors[counter].title} ** ${found_creditors[counter].link ? found_creditors[counter].link : 'Не заполнено'} ** ${found_creditors[counter].isRecommended ? 'Выделенная' : 'Обычная'} ** ${found_creditors[counter].isActive ? 'Отображается' : 'Спрятана'}   \n`
-                        buttons[i][j] = { text: found_creditors[counter].title, callback_data: found_creditors[counter]._id };
-                        counter++;
+                            console.log(counter)
+                            replyText += `${counter + 1}. ${found_creditors[counter].title} ** ${found_creditors[counter].link ? found_creditors[counter].link : 'Не заполнено'} ** ${found_creditors[counter].isRecommended ? 'Выделенная' : 'Обычная'} ** ${found_creditors[counter].isActive ? 'Отображается' : 'Спрятана'}   \n`
+                            buttons[i][j] = { text: found_creditors[counter].title, callback_data: found_creditors[counter]._id };
+                            counter++;
+                        }
                     }
+
                 }
 
+                await ctx.reply(replyText, {
+                    reply_markup: {
+                        inline_keyboard: buttons
+                    }
+                })
+
+
+                return ctx.wizard.next();
+            } catch (e) {
+                await ctx.reply('Проблема с базой данных, это не я...')
+                return ctx.scene.leave();
             }
-
-            await ctx.reply(replyText, {
-                reply_markup: {
-                    inline_keyboard: buttons
-                }
-            })
-
-
-            return ctx.wizard.next();
         },
         async (ctx) => {
             ctx.session.id = ctx?.callbackQuery?.data || null;
@@ -173,12 +178,13 @@ export default defineNitroPlugin(async (app) => {
 
     })
     bot.on('message', async (ctx) => {
-        console.log(ctx.text)
+        await ctx.reply('Привет! Для начала работы выбери команду.')
     })
     if (process.env.NODE_ENV === 'development') {
         bot.launch();
     } else {
         bot.telegram.setWebhook('https://server-friend.vercel.app/api');
+        console.log('bot is running on webhooks')
     }
 
 
