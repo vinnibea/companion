@@ -185,6 +185,11 @@ export default defineNitroPlugin(async (app) => {
 
         await ctx.reply('Привет! Для начала работы выбери команду.')
     })
+
+    if (process.env.NODE_ENV === 'development') {
         bot.launch();
+    } else {
+        bot.telegram.setWebhook('https://server-companion-eight.vercel.app/api/')
+    }
 })
 
