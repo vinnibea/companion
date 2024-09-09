@@ -202,7 +202,7 @@ bot.on('message', async (ctx) => {
 if(process.env.NODE_ENV === 'development') {
     bot.launch();
 } else {
-    bot.telegram.setWebhook('https://server-friend.vercel.com/api');
+    bot.telegram.setWebhook('https://server-friend.vercel.app/api');
 }
 
 
