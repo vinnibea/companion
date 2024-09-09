@@ -22,13 +22,14 @@ export default defineNitroPlugin(async (app) => {
     const creditors_scene = new Scenes.WizardScene(
         "creditors",
         async (ctx) => {
+
             ctx.session = INITIAL_SESSION;
             try {
                 const found_creditors = await creditors.find({});
                 const buttons = [];
 
                 let replyText = 'Cписок доступных МФО \n';
-                console.log(found_creditors.length)
+
                 if (found_creditors) {
                     const rows = Math.floor((found_creditors.length) / 5);
                     const reminder = (found_creditors.length) % 5;
@@ -39,8 +40,6 @@ export default defineNitroPlugin(async (app) => {
                         buttons.push([]);
                         for (let j = 0; j < 5; j++) {
                             if (reminder && i === final_rows - 1 && j === dif) break;
-
-                            console.log(counter)
                             replyText += `${counter + 1}. ${found_creditors[counter].title} ** ${found_creditors[counter].link ? found_creditors[counter].link : 'Не заполнено'} ** ${found_creditors[counter].isRecommended ? 'Выделенная' : 'Обычная'} ** ${found_creditors[counter].isActive ? 'Отображается' : 'Спрятана'}   \n`
                             buttons[i][j] = { text: found_creditors[counter].title, callback_data: found_creditors[counter]._id };
                             counter++;
@@ -63,6 +62,7 @@ export default defineNitroPlugin(async (app) => {
             }
         },
         async (ctx) => {
+            console.log('а потом тут, третья стадия')
             ctx.session.id = ctx?.callbackQuery?.data || null;
             await ctx.reply('Готово, теперь выбери действие', {
                 reply_markup: {
@@ -76,8 +76,9 @@ export default defineNitroPlugin(async (app) => {
             ctx.session.action = ctx?.callbackQuery?.data || null;
 
             if (ctx.session.action === 'change') {
+
                 await ctx.reply('Теперь нужно отправить новую ссылку')
-                return await ctx.wizard.next();
+                return ctx.wizard.next();
             } else {
                 switch (ctx.session.action) {
                     case 'recommend': {
@@ -87,11 +88,12 @@ export default defineNitroPlugin(async (app) => {
                                 new: true,
                             })
                             await ctx.reply('Кредитор теперь выделен на сайте, сессия завершена');
-                            return await ctx.scene.leave();
+                            return ctx.scene.leave();
 
                         } catch (error) {
                             await ctx.reply('Не удалось произвести действие, сессия завершена')
-                            return await ctx.scene.leave();
+
+                            return ctx.scene.leave();
                         }
                     }
 
@@ -101,25 +103,25 @@ export default defineNitroPlugin(async (app) => {
                                 upsert: true,
                                 new: true,
                             })
+
                             await ctx.reply('Кредитор теперь не выделен на сайте, сессия завершена')
                             return await ctx.scene.leave();
                         } catch (error) {
+
                             await ctx.reply('Не удалось произвести действие, сессия завершена')
                             return await ctx.scene.leave();
                         }
                     }
-
                     case 'hide': {
                         try {
                             await creditors.findByIdAndUpdate(ctx.session.id, { isActive: false }, {
                                 upsert: true,
                                 new: true,
                             })
-                            INITIAL_SESSION = {}
+
                             await ctx.reply('Кредитор теперь не виден на сайте, сессия завершена')
                             return await ctx.scene.leave();
                         } catch (error) {
-                            INITIAL_SESSION = {}
 
                             await ctx.reply('Не удалось произвести действие, сессия завершена')
                             return await ctx.scene.leave();
@@ -132,18 +134,17 @@ export default defineNitroPlugin(async (app) => {
                                 upsert: true,
                                 new: true,
                             })
-                            INITIAL_SESSION = {}
+
                             await ctx.reply('Кредитор теперь виден на сайте, сессия завершена')
                             return await ctx.scene.leave();
                         } catch (error) {
-                            INITIAL_SESSION = {}
+
                             await ctx.reply('Не удалось произвести действие, сессия завершена')
                             return await ctx.scene.leave();
                         }
                     }
 
                     default: {
-                        INITIAL_SESSION = {}
                         await ctx.reply('Я ничего не понял, но очень интересно')
                         return await ctx.scene.leave();
                     }
@@ -161,9 +162,11 @@ export default defineNitroPlugin(async (app) => {
                     upsert: true,
                     new: true,
                 })
+
                 await ctx.reply("Новая ссылка успешно создана");
                 return await ctx.scene.leave();
             } catch (error) {
+
                 await ctx.reply("Не удалось изменить ссылку");
                 return await ctx.scene.leave();
             }
@@ -174,15 +177,19 @@ export default defineNitroPlugin(async (app) => {
     bot.use(stage.middleware())
 
     bot.command('creditors', async (ctx) => {
-        ctx.scene.enter('creditors');
+        console.log('я тут')
+        await ctx.scene.enter('creditors');
 
     })
     bot.on('message', async (ctx) => {
+
         await ctx.reply('Привет! Для начала работы выбери команду.')
     })
 
-    bot.launch();
-
-
+    if (process.env.NODE_ENV === 'development') {
+        bot.launch();
+    } else {
+        bot.telegram.setWebhook()
+    }
 })
 
