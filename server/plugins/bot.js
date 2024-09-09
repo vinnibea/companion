@@ -2,10 +2,16 @@
 import { Scenes, session, Telegraf, Composer } from 'telegraf';
 import { default as creditors } from '../schemas/creditor';
 import axios from 'axios';
-
+function isValidUrl(string) {
+    try {
+        new URL(string);
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
 
 export default defineNitroPlugin(async (app) => {
-    console.log('Nitro plugin', app)
     const bot = new Telegraf(useRuntimeConfig().bot);
 
 
@@ -21,21 +27,25 @@ export default defineNitroPlugin(async (app) => {
             const buttons = [];
 
             let replyText = 'Cписок доступных МФО \n';
+            console.log(found_creditors.length)
             if (found_creditors) {
-                const rows = Math.floor(found_creditors.length / 5);
-                const reminder = found_creditors.length % 5;
+                const rows = Math.floor((found_creditors.length) / 5);
+                const reminder = (found_creditors.length) % 5;
                 const final_rows = (reminder ? Math.floor(found_creditors.length / 5) + 1 : rows);
                 const dif = 5 - (5 - reminder);
                 let counter = 0;
                 for (let i = 0; i < final_rows; i++) {
                     buttons.push([]);
                     for (let j = 0; j < 5; j++) {
-                        if (i === final_rows - 1 && j === dif) break;
+                        if (reminder && i === final_rows - 1 && j === dif) break;
+
+                        console.log(counter)
                         replyText += `${counter + 1}. ${found_creditors[counter].title} ** ${found_creditors[counter].link ? found_creditors[counter].link : 'Не заполнено'} ** ${found_creditors[counter].isRecommended ? 'Выделенная' : 'Обычная'} ** ${found_creditors[counter].isActive ? 'Отображается' : 'Спрятана'}   \n`
                         buttons[i][j] = { text: found_creditors[counter].title, callback_data: found_creditors[counter]._id };
                         counter++;
                     }
                 }
+
             }
 
             await ctx.reply(replyText, {
@@ -137,8 +147,12 @@ export default defineNitroPlugin(async (app) => {
         },
 
         async (ctx) => {
+            if (!isValidUrl(ctx.message.text)) {
+                await ctx.reply("Неверный формат ссылки, завершаю сессию");
+                return await ctx.scene.leave();
+            }
             try {
-                await creditors.findByIdAndUpdate(ctx.session.id, { link: ctx.text }, {
+                await creditors.findByIdAndUpdate(ctx.session.id, { link: ctx.message.text }, {
                     upsert: true,
                     new: true,
                 })
@@ -168,5 +182,5 @@ export default defineNitroPlugin(async (app) => {
     }
 
 
-    })
+})
 
