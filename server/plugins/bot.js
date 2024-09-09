@@ -19,7 +19,6 @@ export default defineNitroPlugin(async (app) => {
             ctx.session = INITIAL_SESSION;
             const found_creditors = await creditors.find({});
             const buttons = [];
-            console.log(process.env.NODE_ENV)
 
             let replyText = 'Cписок доступных МФО \n';
             if (found_creditors) {
@@ -49,7 +48,7 @@ export default defineNitroPlugin(async (app) => {
             return ctx.wizard.next();
         },
         async (ctx) => {
-            ctx.session.id = ctx.callbackQuery.data;
+            ctx.session.id = ctx?.callbackQuery?.data || null;
             await ctx.reply('Готово, теперь выбери действие', {
                 reply_markup: {
                     inline_keyboard: [[{ text: 'Изменить ссылку', callback_data: `change` }, { text: 'Выделить', callback_data: `recommend` }, { text: 'Не выделять', callback_data: `not_recommend` }],
@@ -59,7 +58,7 @@ export default defineNitroPlugin(async (app) => {
             return ctx.wizard.next();
         },
         async (ctx) => {
-            ctx.session.action = ctx.callbackQuery.data;
+            ctx.session.action = ctx?.callbackQuery?.data || null;
 
             if (ctx.session.action === 'change') {
                 await ctx.reply('Теперь нужно отправить новую ссылку')
