@@ -9,7 +9,6 @@ const bot = new Telegraf(useRuntimeConfig().bot);
 const stepHandler = new Composer()
 
 
-
 // const scene = new Scenes.WizardScene(
 //     "sceneId",
 //     async (ctx) => {
@@ -203,7 +202,7 @@ bot.on('message', async (ctx) => {
 if(process.env.NODE_ENV === 'development') {
     bot.launch();
 } else {
-    bot.telegram.setWebhook('https://localhost:3001/api');
+    bot.telegram.setWebhook('https://server-friend.vercel.com/api');
 }
 
 
