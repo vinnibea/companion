@@ -1,6 +1,5 @@
 
 import { Scenes, session, Telegraf, Composer } from 'telegraf';
-import { default as creditors } from '../schemas/creditor';
 import axios from 'axios';
 function isValidUrl(string) {
     try {
@@ -12,6 +11,7 @@ function isValidUrl(string) {
 }
 
 export default defineNitroPlugin(async (app) => {
+    console.log('я відправляюсь сюди')
     const bot = new Telegraf(useRuntimeConfig().bot);
 
 
@@ -24,8 +24,15 @@ export default defineNitroPlugin(async (app) => {
         async (ctx) => {
 
             ctx.session = INITIAL_SESSION;
+            await ctx.reply('Запрос пошел...ждем ответ')
             try {
-                const found_creditors = await creditors.find({});
+                const { data: found_creditors } = await axios('https://moneydeal.vercel.app/api/cards/', {
+                    method: 'GET',
+                    headers: {
+                        Authorization: 'Request'
+                    }
+                });
+
                 const buttons = [];
 
                 let replyText = 'Cписок доступных МФО \n';
@@ -62,7 +69,7 @@ export default defineNitroPlugin(async (app) => {
             }
         },
         async (ctx) => {
-            console.log('а потом тут, третья стадия')
+
             ctx.session.id = ctx?.callbackQuery?.data || null;
             await ctx.reply('Готово, теперь выбери действие', {
                 reply_markup: {
@@ -80,74 +87,27 @@ export default defineNitroPlugin(async (app) => {
                 await ctx.reply('Теперь нужно отправить новую ссылку')
                 return ctx.wizard.next();
             } else {
-                switch (ctx.session.action) {
-                    case 'recommend': {
-                        try {
-                            await creditors.findByIdAndUpdate(ctx.session.id, { isRecommended: true }, {
-                                upsert: true,
-                                new: true,
-                            })
-                            await ctx.reply('Кредитор теперь выделен на сайте, сессия завершена');
-                            return ctx.scene.leave();
-
-                        } catch (error) {
-                            await ctx.reply('Не удалось произвести действие, сессия завершена')
-
-                            return ctx.scene.leave();
+                console.log(ctx.session.id, ctx.session.action)
+                const global_data = {
+                    id: ctx.session.id,
+                    action: ctx.session.action,
+                };
+                try {
+                    const { data }= await axios.put('https://moneydeal.vercel.app/api/cards', global_data,
+                        {
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
                         }
-                    }
+                    );
 
-                    case 'not_recommend': {
-                        try {
-                            await creditors.findByIdAndUpdate(ctx.session.id, { isRecommended: false }, {
-                                upsert: true,
-                                new: true,
-                            })
 
-                            await ctx.reply('Кредитор теперь не выделен на сайте, сессия завершена')
-                            return await ctx.scene.leave();
-                        } catch (error) {
+                    await ctx.reply(data.message)
+                    return await ctx.scene.leave();
+                } catch (error) {
 
-                            await ctx.reply('Не удалось произвести действие, сессия завершена')
-                            return await ctx.scene.leave();
-                        }
-                    }
-                    case 'hide': {
-                        try {
-                            await creditors.findByIdAndUpdate(ctx.session.id, { isActive: false }, {
-                                upsert: true,
-                                new: true,
-                            })
-
-                            await ctx.reply('Кредитор теперь не виден на сайте, сессия завершена')
-                            return await ctx.scene.leave();
-                        } catch (error) {
-
-                            await ctx.reply('Не удалось произвести действие, сессия завершена')
-                            return await ctx.scene.leave();
-                        }
-                    }
-
-                    case 'show': {
-                        try {
-                            await creditors.findByIdAndUpdate(ctx.session.id, { isActive: true }, {
-                                upsert: true,
-                                new: true,
-                            })
-
-                            await ctx.reply('Кредитор теперь виден на сайте, сессия завершена')
-                            return await ctx.scene.leave();
-                        } catch (error) {
-
-                            await ctx.reply('Не удалось произвести действие, сессия завершена')
-                            return await ctx.scene.leave();
-                        }
-                    }
-
-                    default: {
-                        await ctx.reply('Я ничего не понял, но очень интересно')
-                        return await ctx.scene.leave();
-                    }
+                    await ctx.reply('Не удалось произвести действие, сессия завершена')
+                    return await ctx.scene.leave();
                 }
             }
         },
@@ -158,12 +118,21 @@ export default defineNitroPlugin(async (app) => {
                 return await ctx.scene.leave();
             }
             try {
-                await creditors.findByIdAndUpdate(ctx.session.id, { link: ctx.message.text }, {
-                    upsert: true,
-                    new: true,
-                })
+                const data_to_update = {
+                    id: ctx.session.id,
+                    action: ctx.session.action,
+                    link: ctx.message.text,
+                };
 
-                await ctx.reply("Новая ссылка успешно создана");
+                const { data }= await axios.put('https://moneydeal.vercel.appapi/cards', data_to_update,
+                    {
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+
+                await ctx.reply(data.message);
                 return await ctx.scene.leave();
             } catch (error) {
 
@@ -177,7 +146,7 @@ export default defineNitroPlugin(async (app) => {
     bot.use(stage.middleware())
 
     bot.command('creditors', async (ctx) => {
-        console.log('я тут')
+
         await ctx.scene.enter('creditors');
 
     })
@@ -185,7 +154,6 @@ export default defineNitroPlugin(async (app) => {
 
         await ctx.reply('Привет! Для начала работы выбери команду.')
     })
-        bot.launch();
-    
+    bot.launch();
 })
 

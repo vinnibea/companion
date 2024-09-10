@@ -8,6 +8,6 @@ export default defineNuxtConfig({
   },
 
   nitro: {
-    plugins: ["~/server/plugins/index.js", "~/server/plugins/bot.js"],
+    plugins: ["~/server/plugins/bot.js"],
   },
 });
