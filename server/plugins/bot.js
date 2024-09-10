@@ -1,6 +1,6 @@
 
 
-import { bot } from '../bot_main';
+import bot from '../bot_main';
 export default defineNitroPlugin(async (app) => {
     if (process.env.NODE_ENV === 'development') {
         bot.launch();
