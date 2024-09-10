@@ -10,7 +10,7 @@ function isValidUrl(string) {
     }
 }
 
-export const bot = new Telegraf(useRuntimeConfig().bot);
+const bot = new Telegraf(useRuntimeConfig().bot);
 
 const stepHandler = new Composer()
 
@@ -90,7 +90,7 @@ const creditors_scene = new Scenes.WizardScene(
                 action: ctx.session.action,
             };
             try {
-                const { data }= await axios.put('https://moneydeal.vercel.app/api/cards', global_data,
+                const { data } = await axios.put('https://moneydeal.vercel.app/api/cards', global_data,
                     {
                         headers: {
                             'Content-Type': 'application/json'
@@ -121,7 +121,7 @@ const creditors_scene = new Scenes.WizardScene(
                 link: ctx.message.text,
             };
 
-            const { data }= await axios.put('https://moneydeal.vercel.appapi/cards', data_to_update,
+            const { data } = await axios.put('https://moneydeal.vercel.appapi/cards', data_to_update,
                 {
                     headers: {
                         'Content-Type': 'application/json'
@@ -153,3 +153,4 @@ bot.on('message', async (ctx) => {
 })
 
 
+export { bot };
