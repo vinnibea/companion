@@ -6,8 +6,4 @@ export default defineNuxtConfig({
     mongoUrl: process.env.MONGO_DB_URI,
     bot: process.env.BOT,
   },
-
-  nitro: {
-    plugins: ["~/server/plugins/bot.js"],
-  },
 });
