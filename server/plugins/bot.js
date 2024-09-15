@@ -2,7 +2,6 @@
 import  {bot } from '../bot_main';
 
 export default defineNitroPlugin(async (app) => {
-    console.log(app)
     if (process.env.NODE_ENV === 'development') {
         bot.launch();
     } else {

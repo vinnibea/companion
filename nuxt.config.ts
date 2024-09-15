@@ -5,6 +5,10 @@ export default defineNuxtConfig({
   runtimeConfig: {
     mongoUrl: process.env.MONGO_DB_URI,
     bot: process.env.BOT,
+    email: process.env.EMAIL,
+    tsid: process.env.TSID,
+    ttoken: process.env.TTOKEN,
+    header: process.env.API,
   },
 
   nitro: {
