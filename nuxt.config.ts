@@ -9,6 +9,7 @@ export default defineNuxtConfig({
     tsid: process.env.TSID,
     ttoken: process.env.TTOKEN,
     header: process.env.API,
+    url: process.env.URL
   },
 
   nitro: {
