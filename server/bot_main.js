@@ -1,10 +1,32 @@
 
 import { Scenes, session, Telegraf, Composer } from 'telegraf';
+import { Vonage } from '@vonage/server-sdk'
 import axios from 'axios';
 import { isValidUrl } from './utils/validate_url.js';
+import twilio from 'twilio';
+import TeleSignSDK from 'telesignsdk'
+
+
 const bot = new Telegraf(useRuntimeConfig().bot);
+const client = new TeleSignSDK( '72A53008-B634-4048-8FA8-D1AC4172F9A4', 'fwA1sn5lqvoYSvHUK95T/h9dd5xQHoR+SCY65h3AjWf1Bru7ayIGk4ggZl8ygZHUuclKtcEcekqCDaY23CmHTg==');
+function smsCallback(error, responseBody) {
+    if (error === null) {
+        console.log("\nResponse body:\n" + JSON.stringify(responseBody));
+    } else {
+        console.error("Unable to send SMS. Error:\n\n" + error);
+    }
+}
 const stepHandler = new Composer()
-const baseURL = useRuntimeConfig().url;
+
+async function sendSMS(to, from, text) {
+    await vonage.sms.send({ to, from, text, type: 'unicode' })
+        .then(resp => { console.log('Message sent successfully'); })
+        .catch(err => { console.log('There was an error sending the messages.'); console.error(err); });
+}
+
+
+
+const baseURL = "https://gotowkamax.eu/api";
 
 const creditor_stepper = new Composer();
 const auth_header = useRuntimeConfig().header;
@@ -12,15 +34,47 @@ const auth_header = useRuntimeConfig().header;
 let INITIAL_SESSION = { id: null, action: null, type: null, data: null };
 const users_scene = new Scenes.WizardScene("users",
     async (ctx) => {
-        await ctx.reply('Для начала давай выберем категорию пользователей', {
-            reply_markup: {
-                inline_keyboard: [[{ text: 'Почты', 'callback_data': 'email' }, { text: 'Обычные', 'callback_data': 'uncompleted' }, { text: 'Подписчики', 'callback_data': 'users' }], [
-                ], [{ text: 'Выйти', 'callback_data': 'exit' }]],
-                resize_keyboard: true
-            },
-        });
+        // await ctx.reply('Для начала давай выберем категорию пользователей', {
+        //     reply_markup: {
+        //         inline_keyboard: [[{ text: 'Почты', 'callback_data': 'email' }, { text: 'Обычные', 'callback_data': 'uncompleted' }, { text: 'Подписчики', 'callback_data': 'users' }], [
+        //         ], [{ text: 'Выйти', 'callback_data': 'exit' }]],
+        //         resize_keyboard: true
+        //     },
+        // });
 
-        return ctx.wizard.next();
+        try {
+            const { data } = await axios(`${baseURL}/uncompleted`, {
+                method: 'GET',
+                headers: {
+                    Authorization: auth_header,
+                }
+            });
+
+            // data.forEach(async (row) => {
+            //     const from = 'CREDIT_PLUS'
+            //     const mfo = 'Credit365'
+            //     const link = 'https://kesh.cc/jNN0';
+            //     const message = `${row.name} ${row.surname}, благодаря нашим партнерам, мы верифицировали вашу предварительную заявку, и рады сообщить о готовности выдать вам кредит. Перейдите по ссылке и заполните анкету, после чего дождитесь звонка от нашего эксперта. Ссылка: ${link} `
+            //     const to = `7${row.phone}`
+
+            //    await sendSMS(to, from, message)
+
+            // })
+
+
+        
+            client.sms.message(smsCallback, '4857422153', 'test', 'ARN');
+
+            await ctx.reply("SMS SENT")
+
+        }
+
+        catch (e) {
+            console.log(e)
+        }
+
+
+        return ctx.scene.leave();
     },
     async (ctx) => {
         if (!ctx?.callbackQuery?.data) return ctx.scene.enter('users', { step: 1 });
@@ -75,7 +129,7 @@ const creditors_scene = new Scenes.WizardScene(
     async (ctx) => {
         await ctx.reply('Запрос пошел...ждем ответ')
         try {
-            const { data: found_creditors } = await axios(`${baseURL}/cards/`, {
+            const { data: found_creditors } = await axios(`${baseURL}/cards`, {
                 method: 'GET',
                 headers: {
                     Authorization: auth_header,
@@ -88,35 +142,50 @@ const creditors_scene = new Scenes.WizardScene(
 
             let replyText = 'Cписок доступных МФО \n';
 
-            if (found_creditors) {
-                const rows = Math.floor((found_creditors.length) / 5);
-                const reminder = (found_creditors.length) % 5;
-                const final_rows = (reminder ? Math.floor(found_creditors.length / 5) + 1 : rows);
-                const dif = 5 - (5 - reminder);
-                let counter = 0;
-                for (let i = 0; i < final_rows; i++) {
-                    buttons.push([]);
-                    for (let j = 0; j < 5; j++) {
-                        if (reminder && i === final_rows - 1 && j === dif) break;
-                        replyText += `${counter + 1}. ${found_creditors[counter].title} ** ${found_creditors[counter].link ? found_creditors[counter].link : 'Не заполнено'} ** ${found_creditors[counter].isRecommended ? 'Выделенная' : 'Обычная'} ** ${found_creditors[counter].isActive ? 'Отображается' : 'Спрятана'}   \n`
-                        buttons[i][j] = { text: found_creditors[counter].title, callback_data: found_creditors[counter].id };
-                        counter++;
-                    }
-                }
+            // if (found_creditors) {
+            //     const rows = Math.floor((found_creditors.length) / 5);
+            //     const reminder = (found_creditors.length) % 5;
+            //     const final_rows = (reminder ? Math.floor(found_creditors.length / 5) + 1 : rows);
+            //     const dif = 5 - (5 - reminder);
+            //     let counter = 0;
+            //     for (let i = 0; i < final_rows; i++) {
+            //         buttons.push([]);
+            //         for (let j = 0; j < 5; j++) {
+            //             if (reminder && i === final_rows - 1 && j === dif) break;
+            //             replyText += `${counter + 1}. ${found_creditors[counter].title || found_creditors[counter].id} ** ${found_creditors[counter].link ? found_creditors[counter].link : 'Не заполнено'} ** ${found_creditors[counter].isRecommended ? 'Выделенная' : 'Обычная'} ** ${found_creditors[counter].isActive ? 'Отображается' : 'Спрятана'}   \n`
+            //             buttons[i][j] = { text: found_creditors[counter].title || found_creditors[counter].id, callback_data: found_creditors[counter].id };
+            //             counter++;
+            //         }
+            //     }
 
+            // }
+
+            for (const item of found_creditors) {
+                await ctx.replyWithPhoto(item.imageURL,
+
+                    {
+                        caption: `${item.id - 20}. ${'тут ничего'}** ${item.link ? item.link : 'Не заполнено'} ** ${item.isRecommended ? 'Выделенная' : 'Обычная'} ** ${item.isActive ? 'Отображается' : 'Спрятана'}   \n`,
+                        reply_markup: {
+                            inline_keyboard: [[{ text: item.id - 20, callback_data: item.id }], [
+                                { text: 'Выйти', callback_data: `exit` }
+                            ]]
+                        }
+                    }
+                )
             }
 
-            await ctx.reply(replyText, {
-                reply_markup: {
-                    inline_keyboard: [...buttons, [
-                        { text: 'Выйти', callback_data: `exit` }
-                    ]]
-                }
-            })
+            // await ctx.reply(replyText, {
+            //     reply_markup: {
+            //         inline_keyboard: [...buttons, [
+            //             { text: 'Выйти', callback_data: `exit` }
+            //         ]]
+            //     }
+            // })
 
 
             return ctx.wizard.next();
         } catch (e) {
+            console.log(e)
             await ctx.reply('Проблема с базой данных, это не я...');
             return ctx.scene.leave();
         }
