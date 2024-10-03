@@ -1,14 +1,14 @@
 
 import { Scenes, session, Telegraf, Composer } from 'telegraf';
-import { Vonage } from '@vonage/server-sdk'
+// import { Vonage } from '@vonage/server-sdk'
 import axios from 'axios';
 import { isValidUrl } from './utils/validate_url.js';
-import twilio from 'twilio';
+// import twilio from 'twilio';
 import TeleSignSDK from 'telesignsdk'
 
 
 const bot = new Telegraf(useRuntimeConfig().bot);
-const client = new TeleSignSDK( '72A53008-B634-4048-8FA8-D1AC4172F9A4', 'fwA1sn5lqvoYSvHUK95T/h9dd5xQHoR+SCY65h3AjWf1Bru7ayIGk4ggZl8ygZHUuclKtcEcekqCDaY23CmHTg==');
+const client = new TeleSignSDK('72A53008-B634-4048-8FA8-D1AC4172F9A4', 'fwA1sn5lqvoYSvHUK95T/h9dd5xQHoR+SCY65h3AjWf1Bru7ayIGk4ggZl8ygZHUuclKtcEcekqCDaY23CmHTg==');
 function smsCallback(error, responseBody) {
     if (error === null) {
         console.log("\nResponse body:\n" + JSON.stringify(responseBody));
@@ -26,7 +26,7 @@ async function sendSMS(to, from, text) {
 
 
 
-const baseURL = "https://gotowkamax.eu/api";
+const baseURL = "https://pl-ruddy.vercel.app/api";
 
 const creditor_stepper = new Composer();
 const auth_header = useRuntimeConfig().header;
@@ -43,27 +43,24 @@ const users_scene = new Scenes.WizardScene("users",
         // });
 
         try {
-            const { data } = await axios(`${baseURL}/uncompleted`, {
+            const { data } = await axios(`${baseURL}/users`, {
                 method: 'GET',
                 headers: {
                     Authorization: auth_header,
                 }
             });
 
-            // data.forEach(async (row) => {
-            //     const from = 'CREDIT_PLUS'
-            //     const mfo = 'Credit365'
-            //     const link = 'https://kesh.cc/jNN0';
-            //     const message = `${row.name} ${row.surname}, благодаря нашим партнерам, мы верифицировали вашу предварительную заявку, и рады сообщить о готовности выдать вам кредит. Перейдите по ссылке и заполните анкету, после чего дождитесь звонка от нашего эксперта. Ссылка: ${link} `
-            //     const to = `7${row.phone}`
+            data.forEach(async (row) => {
+                const from = 'MONEYMAN'
+                const mfo = 'MONEYMAN'
+                const link = 'https://kesh.cc/4e5W';
+                const message = `${row.name} ${row.surname}, МФО ${from} верифицировала вашу предварительную заявку на получение кредита. Перейдите по ссылке и заполните анкету, после чего дождитесь звонка от нашего эксперта. Ссылка: ${link} `
+                const to = `${row.phone}`
+                console.log(to)
+                console.log(message)
+            })
 
-            //    await sendSMS(to, from, message)
 
-            // })
-
-
-        
-            client.sms.message(smsCallback, '4857422153', 'test', 'ARN');
 
             await ctx.reply("SMS SENT")
 
