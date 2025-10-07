@@ -1,61 +1,33 @@
 
-import { Scenes, session, Telegraf} from 'telegraf';
+import { Scenes, session, Telegraf } from 'telegraf';
 import axios from 'axios';
 import { isValidUrl } from './utils/validate_url.js';
 
 
 const bot = new Telegraf(useRuntimeConfig().bot);
 const baseURL = "https://pl-ruddy.vercel.app/api";
+const login = 'root';
 
 const auth_header = useRuntimeConfig().header;
 
-const users_scene = new Scenes.WizardScene("users",
+const login_scene = new Scenes.WizardScene('login',
     async (ctx) => {
-        if (!ctx?.callbackQuery?.data) return ctx.scene.enter('users', { step: 1 });
-        if (ctx.callbackQuery.data === 'exit') return ctx.scene.leave();
-n
-        ctx.session.type = ctx?.callbackQuery?.data || null;
-        await ctx.reply('Понял, сейчас схожу посмотрю что там')
-        try {
-            const { data } = await axios(`${baseURL}/${ctx.session.type}`, {
-                method: 'GET',
-                headers: {
-                    Authorization: auth_header,
-                }
-            });
-            if (!data.length) {
-                await ctx.reply('Ничего не найдено')
-                return ctx.scene.enter('users', { step: 1 });
-            }
-
-
-            ctx.session.data = data;
-            await ctx.reply(`Найдено: ${data.length}\n` + data.reduce((acc, next, i) => {
-                return acc + `\n${i + 1}. ${next.email}`
-
-            }, ''), {
-                reply_markup: {
-                    inline_keyboard: [[{ text: 'Назад', 'callback_data': 'back' }, { text: 'Выйти', 'callback_data': 'exit' }]],
-                    resize_keyboard: true,
-                }
-            });
-            return ctx.wizard.next();
-        } catch (error) {
-            console.log(error)
-
-            await ctx.reply('Не удалось, покидаю сессию')
-            return ctx.scene.leave();
-        }
+        await ctx.reply('Введите логин');
+        await ctx.wizard.next();
     },
     async (ctx) => {
-        if (ctx.callbackQuery.data === 'back') {
-            return ctx.scene.enter('users', { step: 1 });
-        } else {
-            return ctx.scene.leave();
+        let retries = 3;
+        while (retries-- > 0 && ctx.message.text !== login) {
+            if (ctx.message.text !== login) {
+                retries--;
+                await ctx.reply('Неверный логин, попробуйте еще раз');
+            } else {
+                await ctx.reply('Логин верный, добро пожаловать');
+                return ctx.scene.enter('creditors', {step: 1});
+            }
         }
     }
-
-);
+)
 
 
 const creditors_scene = new Scenes.WizardScene(
@@ -194,7 +166,7 @@ const creditors_scene = new Scenes.WizardScene(
         }
     },
 );
-const stage = new Scenes.Stage([creditors_scene, users_scene]);
+const stage = new Scenes.Stage([login_scene, creditors_scene, users_scene]);
 bot.use(session())
 bot.use(stage.middleware())
 
