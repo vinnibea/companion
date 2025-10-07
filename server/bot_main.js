@@ -1,5 +1,5 @@
 
-import { Scenes, session, Telegraf, Composer } from 'telegraf';
+import { Scenes, session, Telegraf} from 'telegraf';
 import axios from 'axios';
 import { isValidUrl } from './utils/validate_url.js';
 
@@ -76,7 +76,7 @@ const creditors_scene = new Scenes.WizardScene(
                     {
                         caption: `${item.id}. ${'тут ничего'}** ${item.link ? item.link : 'Не заполнено'} ** ${item.isRecommended ? 'Выделенная' : 'Обычная'} ** ${item.isActive ? 'Отображается' : 'Спрятана'}   \n`,
                         reply_markup: {
-                            inline_keyboard: [[{ text: item.id - 20, callback_data: item.id }], [
+                            inline_keyboard: [[{ text: item.id, callback_data: item.id }], [
                                 { text: 'Выйти', callback_data: `exit` }
                             ]]
                         }
