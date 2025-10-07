@@ -8,7 +8,7 @@ export default defineNitroPlugin(async (app) => {
         console.log('Development mode, launching bot without webhook');
         // bot.launch();
     } else {
-        bot.telegram.setWebhook('https://companion-kohl.vercel.app/api/bot')
+        bot.telegram.setWebhook('https://companion-pgjykk.vercel.app/api/bot')
     }
 })
 
