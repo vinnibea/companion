@@ -1,30 +1,31 @@
 
-import { Scenes, session, Telegraf } from 'telegraf';
+import { Composer, Markup, Scenes, session, Telegraf } from 'telegraf';
 import axios from 'axios';
 import { isValidUrl } from './utils/validate_url.js';
 
 
 const bot = new Telegraf(useRuntimeConfig().bot);
-const baseURL = "https://pl-ruddy.vercel.app/api";
+const baseURL = process.env.NODE_ENV === 'production' ? "https://pl-ruddy.vercel.app/api" : "http://localhost:3001/api";
+console.log(process.env.NODE_ENV)
 const login = 'root';
 
 const auth_header = useRuntimeConfig().header;
+const stepHandler = new Composer();
 
 const login_scene = new Scenes.WizardScene('login',
     async (ctx) => {
+        console.log(ctx.session.isAuthenticated)
         await ctx.reply('Введите логин');
         await ctx.wizard.next();
     },
     async (ctx) => {
-        let retries = 3;
-        while (retries-- > 0 && ctx.message.text !== login) {
-            if (ctx.message.text !== login) {
-                retries--;
-                await ctx.reply('Неверный логин, попробуйте еще раз');
-            } else {
-                await ctx.reply('Логин верный, добро пожаловать');
-                return ctx.scene.enter('creditors', {step: 1});
-            }
+        if (ctx.message.text !== login) {
+            await ctx.reply('Неверный логин, попробуйте еще раз');
+        } else {
+            ctx.session.activePage = 1;
+            await ctx.reply('Логин верный, добро пожаловать');
+            ctx.session.isAuthenticated = true;
+            return ctx.scene.enter('creditors', { step: 1 });
         }
     }
 )
@@ -33,29 +34,37 @@ const login_scene = new Scenes.WizardScene('login',
 const creditors_scene = new Scenes.WizardScene(
     "creditors",
     async (ctx) => {
-        await ctx.reply('Запрос пошел...ждем ответ')
+        if (!ctx.session.isAuthenticated) return ctx.scene.enter('login', { step: 1 });
+        console.log(ctx.session.activePage)
+        await ctx.reply('Загружаю кредиторов...')
         try {
-            const { data: found_creditors } = await axios(`${baseURL}/cards`, {
+            const { data: { payload } } = await axios(`${baseURL}/cards`, {
                 method: 'GET',
                 headers: {
                     Authorization: auth_header,
+                },
+                params: {
+                    page: ctx.session.activePage,
                 }
             });
 
-            for (const item of found_creditors) {
-                await ctx.replyWithPhoto(item.imageURL,
+            ctx.session.nextPage = payload.next;
+            ctx.session.prevPage = payload.prev;
 
+            for (const item of payload.data) {
+                await ctx.replyWithPhoto(item.imageURL,
                     {
                         caption: `${item.id}. ${'тут ничего'}** ${item.link ? item.link : 'Не заполнено'} ** ${item.isRecommended ? 'Выделенная' : 'Обычная'} ** ${item.isActive ? 'Отображается' : 'Спрятана'}   \n`,
                         reply_markup: {
-                            inline_keyboard: [[{ text: item.id, callback_data: item.id }], [
-                                { text: 'Выйти', callback_data: `exit` }
-                            ]]
+                            inline_keyboard: [[{ text: item.id, callback_data: item.id }]]
                         }
                     }
                 )
             }
-
+            const buttons = [...(ctx.session.prevPage ? [Markup.button.callback('Назад', 'prev')] : []), Markup.button.callback('Выйти', 'exit'), ...(ctx.session.nextPage ? [Markup.button.callback('Вперед', 'next')] : [])];
+            await ctx.reply('Листай для выбора страницы', Markup.inlineKeyboard([
+                buttons
+            ]))
             return ctx.wizard.next();
         } catch (e) {
             console.log(e)
@@ -64,14 +73,29 @@ const creditors_scene = new Scenes.WizardScene(
         }
     },
     async (ctx) => {
-        if (ctx?.callbackQuery?.data === 'exit') {
-            await ctx.reply('Понял, выхожу');
-            return ctx.scene.leave();
+        switch (ctx?.callbackQuery?.data) {
+            case 'exit': {
+                await ctx.reply('Покидаю сессию');
+                ctx.session.isAuthenticated = false;
+                ctx.session.activePage = 1;
+                return ctx.scene.leave();
+
+            }
+
+            case 'prev': {
+                ctx.session.activePage = ctx.session.prevPage ? ctx.session.activePage - 1 : 1;
+                return ctx.scene.enter('creditors', { step: 1 });
+            }
+
+            case 'next': {
+                ctx.session.activePage = ctx.session.nextPage ? ctx.session.activePage + 1 : ctx.session.activePage;
+                return ctx.scene.enter('creditors', { step: 1 });
+            }
         }
+
 
         ctx.session.id = ctx?.callbackQuery?.data;
         if (!ctx.session.id) {
-            await ctx.reply('Не, мы не пропустим эти данные')
             return ctx.scene.enter('creditors', { step: 1 });
         }
         await ctx.reply('Готово, теперь выбери действие', {
@@ -88,18 +112,20 @@ const creditors_scene = new Scenes.WizardScene(
     },
     async (ctx) => {
         if (ctx?.callbackQuery?.data === 'exit') {
-            await ctx.reply('Выхожу')
+            ctx.session.isAuthenticated = false;
+            ctx.session.activePage = 1;
+            await ctx.reply('Покидаю сессию')
             return await ctx.scene.leave();
         }
         if (ctx?.callbackQuery?.data === 'back') {
-            await ctx.reply('Начинаем сначала')
+            await ctx.reply('Загружаю кредиторов...')
             return await ctx.scene.enter('creditors', { step: 1 });
         }
         ctx.session.action = ctx?.callbackQuery?.data;
 
         if (ctx.session.action === 'change') {
 
-            await ctx.reply('Теперь нужно отправить новую ссылку')
+            await ctx.reply('Теперь можно вставить новую ссылку')
             return ctx.wizard.next();
         } else {
             const global_data = {
@@ -107,11 +133,11 @@ const creditors_scene = new Scenes.WizardScene(
                 action: ctx.session.action,
             };
             if (!global_data.id) {
-                await ctx.reply('Не, мы не пропустим эти данные')
+                await ctx.reply('Неверный формат ссылки')
                 return ctx.scene.enter('creditors', { step: 1 });
             }
             if (!['recommend', 'not_recommend', 'change', 'hide', 'show'].includes(global_data.action)) {
-                await ctx.reply('Так у нас не принято')
+                await ctx.reply('Неверное действие')
                 return ctx.scene.enter('creditors', { step: 1 });
             }
             try {
@@ -157,6 +183,7 @@ const creditors_scene = new Scenes.WizardScene(
                 }
             );
 
+
             await ctx.reply(data.message);
             return await ctx.scene.enter('creditors', { step: 1 });
         } catch (error) {
@@ -165,23 +192,30 @@ const creditors_scene = new Scenes.WizardScene(
             return await ctx.scene.enter('creditors', { step: 1 });
         }
     },
+    stepHandler
 );
-const stage = new Scenes.Stage([login_scene, creditors_scene, users_scene]);
+const stage = new Scenes.Stage([login_scene, creditors_scene]);
+
 bot.use(session())
 bot.use(stage.middleware())
 
 
-bot.command('users', async (ctx) => {
-    await ctx.reply('Хорошо, начинаем поиск по пользователям сайта')
-    await ctx.scene.enter('users');
+bot.command('start', async (ctx) => {
+    await ctx.scene.enter('login');
 })
+
+bot.command('exit', async (ctx) => {
+    if (ctx.session.isAuthenticated !== true) return await ctx.reply('Ты и так не в системе');
+
+    await ctx.reply('Заканчиваю сессию');
+    ctx.session.isAuthenticated = false;
+    return await ctx.scene.leave();
+})
+
 bot.command('creditors', async (ctx) => {
-
     await ctx.scene.enter('creditors');
-
 })
 bot.on('message', async (ctx) => {
-
     await ctx.reply('Привет! Для начала работы выбери команду.')
 })
 
